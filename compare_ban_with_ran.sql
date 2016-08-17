@@ -9,16 +9,61 @@
 
 dropdb banapi
 createdb -D ban_tablespace banapi -O ban
-C:\Users\nrm430\Devel>"C:\Program Files\PostgreSQL\9.4\bin\pg_restore" -h 200.108.141.207 -j 3 -U ban -d banapi C:\Users\nrm430\Downloads\ban-dump\ban.dump 1>\DATA\LOG\pg.log 2>\DATA\LOG\pgerr.log
+C:\Users\nrm430\Devel>"C:\Program Files\PostgreSQL\9.4\bin\pg_restore" -h 200.108.141.207 -j 3 -U ban -d banapi C:\Users\nrm430\Downloads\ban-dump\ban.dump 1>\DATA\LOG\ban.log 2>\DATA\LOG\banerr.log
 
 SELECT * from pg_stat_activity ;
+SELECT pg_database_size('banapi') / (1024*1024);
+SELECT pg_size_pretty(pg_total_relation_size('version'));
+SELECT pg_size_pretty(pg_relation_size('version'));
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- DDL
+--
+
+delete from total;
+select * from total order by db, data, zone;
+
+drop table total cascade;
+create table total(
+	db varchar(5) not null
+	,data varchar(20) not null
+	,zone varchar(10) null
+	,count integer not null
+	)
+	;
+
+--ALTER TABLE total ADD PRIMARY KEY (db, data, insee);
+
+delete from delta;
+select * from delta;
+
+drop table delta cascade;
+create table delta(
+	-- db non utile!
+	db varchar(5) not null
+	,data varchar(20) not null
+	,insee varchar(5) not null
+	,delta char(1) not null
+	,key1 varchar(100) null
+	,key2 varchar(100) null
+	,key3 varchar(100) null
+	,key4 varchar(100) null
+	)
+	;
+
+create index delta_data_insee_delta on	delta(db, data, insee, delta);
+drop index delta_insee;
+create index delta_insee on delta(insee);
+
+vacuum total;
+vacuum delta;
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- plugins
 --
 
 -- calcul code Département (à partir INSEE)
-drop function getdepartment(character varying);
+drop function IF EXISTS getdepartment(character varying);
 CREATE OR REPLACE FUNCTION getDepartment(citycode VARCHAR(5)) 
 RETURNS VARCHAR(3) AS 
 $$
@@ -40,9 +85,10 @@ $$ LANGUAGE plpgsql;
 -- totaux
 --
 
+insert into total(db, data, count)
 select
 	'BAN' "db"
-	,1 "id"
+	--,1 "id"
 	,'Municipality' "data"
 	,count(*) "count"
 from
@@ -50,18 +96,18 @@ from
 union
 select
 	'RAN' "db"
-	,1 "id"
+	--,1 "id"
 	,'Municipality' "data"
 	,count(*)
 from
-	za
+	ran.za_ra18
 where
 	fl_etat = 1
 	and id_typ_loc in (1, 2)
 union
 select
 	'BAN' "db"
-	,2 "id"
+	--,2 "id"
 	,'Postcode' "data"
 	,count(distinct p.code || p.name)
 from
@@ -70,74 +116,123 @@ from
 union
 select
 	'RAN' "db"
-	,2 "id"
+	--,2 "id"
 	,'Postcode' "data"
 	,count(distinct co_postal || lb_ach_nn)
 from
-	za
+	ran.za_ra18
 where
 	fl_etat = 1
 	and id_typ_loc in (1, 2)
 union
 select
 	'BAN' "db"
-	,3 "id"
+	--,3 "id"
 	,'Group' "data"
 	,count(*)
 from
 	public.Group g
-		join Municipality m on g.municipality_id = m.pk
+--		join Municipality m on g.municipality_id = m.pk
+--where
+--	getDepartment(m.insee) in ('06', '33', '90')
 union
 select
 	'RAN' "db"
-	,3 "id"
+	--,3 "id"
 	,'Group' "data"
 	,count(*)
 from
-	voie
+	ran.voie_ra41
 where
 	fl_etat = 1
 	and
 	fl_adr = 1
 	and
 	fl_diffusable = 1
-union
-
-order by
-	2, 1
-	;
 	
+--	and
+--	getDepartment(co_insee) in ('06', '33', '90')
+union
+select
+	'BAN' "db"
+	--,4 "id"
+	,'Housenumber' "data"
+	,count(*)	
+from
+	housenumber hn
+		join "group" g on hn.parent_id = g.pk
+--		join municipality m on g.municipality_id = m.pk
+where
+	hn.number is not null
+--	and
+--	getDepartment(m.insee) in ('06', '33', '90')
+union
+select
+	'RAN' "db"
+	--,4 "id"
+	,'Housenumber' "data"
+	,count(*)
+from
+	ran.numero_ra33 n
+--		join adresse a on n.co_cea = a.co_cea_numero
+--		join ran.za_ra18 z on z.co_cea = a.co_cea_za
+where
+	n.fl_etat = 1
+	and
+	n.fl_diffusable = 1
+--	and
+--	a.co_cea_l3 is null
+
+--	and
+--	getDepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END)) in ('06', '33', '90')
+
+--order by
+--	2, 1
+	;
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- totaux (par INSEE)
+--
+
+select * from total order by 2, 1, 3;
+
 --
 -- Municipality
 --
 
 -- BAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(insee)
-	,count(*)
+	'BAN' "db"
+	,'Municipality' "data"
+	,getdepartment(insee) "zone"
+	,count(*) "count"
 from
 	Municipality
 group by
 	getdepartment(insee)
-order by
-	1
+--order by
+--	1
 	;
 
 -- RAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(co_insee)
-	,count(*)
+	'RAN' "db"
+	,'Municipality' "data"
+	,getdepartment(co_insee) "zone"
+	,count(*) "count"
 from
-	za
+	ran.za_ra18
 where
 	fl_etat = 1
 	and id_typ_loc in (1, 2)
 group by
 	getdepartment(co_insee)
-order by
-	1
+--order by
+--	1
 	;
 
 --	
@@ -146,26 +241,32 @@ order by
 
 -- BAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(m.insee)
+	'BAN' "db"
+	,'Postcode' "data"
+	,getdepartment(m.insee) "zone"
 	--,count(distinct p.code)
-	,count(distinct p.code || p.name)
+	,count(distinct p.code || p.name) "count"
 from
 	Postcode p
 		join Municipality m on p.municipality_id = m.pk
 group by
 	getdepartment(m.insee)
-order by
-	1
+--order by
+--	1
 	;
 
 -- RAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(co_insee)
-	,count(distinct co_postal || lb_ach_nn)
+	'RAN' "db"
+	,'Postcode' "data"
+	,getdepartment(co_insee) "zone"
+	,count(distinct co_postal || lb_ach_nn) "count"
 from
-	za
+	ran.za_ra18
 where
 	fl_etat = 1
 	and id_typ_loc in (1, 2)
@@ -181,35 +282,46 @@ order by
 
 -- BAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(m.insee)
-	,count(*)
+	'BAN' "db"
+	,'Group' "data"
+	,getdepartment(m.insee) "zone"
+	,count(*) "count"
 from
 	public.Group g
 		join Municipality m on g.municipality_id = m.pk
+where
+	getDepartment(m.insee) in ('06', '33', '90')
 group by
 	getdepartment(m.insee)
-order by
-	1
+--order by
+--	1
 	;
 
 -- RAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(co_insee)
-	,count(*)
+	'RAN' "db"
+	,'Group' "data"
+	,getdepartment(co_insee) "zone"
+	,count(*) "count"
 from
-	voie
+	ran.voie_ra41
 where
 	fl_etat = 1
 	and
 	fl_adr = 1
 	and
 	fl_diffusable = 1
+	
+	and
+	getDepartment(co_insee) in ('06', '33', '90')
 group by
 	getdepartment(co_insee)
-order by
-	1
+--order by
+--	1
 	;
 
 --
@@ -218,57 +330,81 @@ order by
 
 -- BAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment(m.insee)
-	,count(*)	
+	'BAN' "db"
+	,'Housenumber' "data"
+	,getdepartment(m.insee) "zone"
+	,count(*) "count"
 from
 	housenumber hn
 		join "group" g on hn.parent_id = g.pk
 		join municipality m on g.municipality_id = m.pk
 where
 	hn.number is not null
+	and
+	getDepartment(m.insee) in ('06', '33', '90')
 group by
 	getdepartment(m.insee)
-order by
-	1
+--order by
+--	1
 	;
 
 -- RAN
 
+insert into total(db, data, zone, count)
 select
-	getdepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END))
-	,count(*)
+	'RAN' "db"
+	,'Housenumber' "data"
+	,getdepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END)) "zone"
+	,count(*) "count"
 from
-	numero n
+	ran.numero_ra33 n
 		join adresse a on n.co_cea = a.co_cea_numero
-		join za z on z.co_cea = a.co_cea_za
+		join ran.za_ra18 z on z.co_cea = a.co_cea_za
 where
 	n.fl_etat = 1
 	and
 	n.fl_diffusable = 1
 	and
 	a.co_cea_l3 is null
+	
+	and
+	getDepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END)) in ('06', '33', '90')
 group by
 	getdepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END))
-order by
-	1
+--order by
+--	1
 	;
 	
-
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- delta (d1= BAN, d2= RAN)
 --
+
+select data, delta, count(*) from delta group by data, delta order by 1, 2;
+select * from delta order by db, data, insee, delta, key1, key2;
+
+-- 51345
+select count(*) from public.group where laposte is not null;
+select count(*) from public.housenumber where number is null;
+-- 15944750
+select count(*) from public.housenumber where laposte is not null;
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 --	
 -- Municipality
 --
 
+insert into delta(db, data, insee, delta)
 with
 d1 as
 (
 	select
 		insee
 		-- libellé normé, en majuscule (sans accent, sans trait union, et SAINT[E] abrégé en ST[E])
+		--  inner replace: abréviation SAINT[E]
+		--  outer replace: transformation n espaces en 1 seul		
 		,regexp_replace(regexp_replace(translate(upper(unaccent(name)), $$-'$$, '  '), 'SAINT([E]?) ', 'ST\1 '), '[ ]+', ' ') "name"
 	from
 		Municipality
@@ -279,15 +415,17 @@ d1 as
 		co_insee "insee"
 		,lb_ach_nn "name"
 	from
-		za
+		ran.za_ra18
 	where
 		fl_etat = 1
 		and id_typ_loc in (1, 2)
 )
 
 select
-	'-' "delta"
+	'BAN' "db"
+	,'Municipality' "data"
 	,d.insee
+	,'+' "delta"
 from
 (
 	select
@@ -303,8 +441,10 @@ from
   
 union
 select
-	'+'
+	'BAN' "db"
+	,'Municipality' "data"
 	,d.insee
+	,'-' "delta"
 from
 (
 	select
@@ -320,8 +460,10 @@ from
 
 union
 select
-	'!'
+	'BAN' "db"
+	,'Municipality' "data"
 	,d.insee
+	,'!' "delta"
 from
 (
 	select
@@ -333,15 +475,18 @@ from
 		(d1.name != d2.name)
 ) d
 
-order by
-	1, 2
+--order by
+--	1, 2
+
 ;
 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 --	
 -- Postcode
 --
 
+insert into delta(db, data, insee, delta, key1, key2)
 with
 d1 as
 (
@@ -360,14 +505,17 @@ d1 as
 		,lb_ach_nn "name"
 		,co_insee "insee"
 	from
-		za
+		ran.za_ra18
 	where
 		fl_etat = 1
 		and id_typ_loc in (1, 2)
 )
 
 select
-	'-' "delta"
+	'BAN' "db"
+	,'Postcode' "data"
+	,d1.insee
+	,'+' "delta"
 	,d.code
 	,d.name
 from
@@ -384,10 +532,14 @@ from
 	from
 		d2
 ) d
-  
+	join d1 on d.code = d1.code and d.name = d1.name
+	
 union
 select
-	'+'
+	'BAN' "db"
+	,'Postcode' "data"
+	,d2.insee
+	,'-' "delta"
 	,d.code
 	,d.name
 from
@@ -404,10 +556,14 @@ from
 	from
 		d1
 ) d
+	join d2 on d.code = d2.code and d.name = d2.name
   
 union
 select
-	'!'
+	'BAN' "db"
+	,'Postcode' "data"
+	,d1.insee
+	,'-' "delta"
 	,d.code
 	,d.name
 from
@@ -421,11 +577,14 @@ from
 	where
 		(d1.insee != d2.insee)
 ) d
+	join d1 on d.code = d1.code and d.name = d1.name
 
-order by
-	1, 2, 3
+--order by
+--	1, 2, 3
+
 ;
 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 --	
 -- Group
@@ -433,6 +592,7 @@ order by
 
 -- delta
 
+insert into delta(db, data, insee, delta, key1)
 with
 d1 as
 (
@@ -445,10 +605,12 @@ d1 as
 	from
 		public.Group g
 			join Municipality m on g.municipality_id = m.pk
-			left outer join Housenumber hn on g.pk = hn.parent_id
-			
+			left outer join Housenumber hn on g.pk = hn.parent_id	
 	where
 		hn.number is null
+		
+		and
+		getDepartment(m.insee) in ('06', '33', '90')
 )
 ,d2 as
 (
@@ -458,18 +620,23 @@ d1 as
 		,co_voie "id"
 		,co_cea "cea"
 	from
-		voie
+		ran.voie_ra41
 	where
 		fl_etat = 1
 		and
 		fl_adr = 1
 		and
 		fl_diffusable = 1
+		
+		and
+		getDepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END)) in ('06', '33', '90')
 )
 
 select
-	'-' "delta"
+	'BAN' "db"
+	,'Group' "data"
 	,d.insee
+	,'+' "delta"
 	,d.name
 from
 (
@@ -488,8 +655,10 @@ from
   
 union
 select
-	'+'
+	'BAN' "db"
+	,'Group' "data"
 	,d.insee
+	,'-'
 	,d.name
 from
 (
@@ -508,8 +677,10 @@ from
 
 union
 select
-	'!'
+	'BAN' "db"
+	,'Group' "data"
 	,d.insee
+	,'!'
 	,d.name
 from
 (
@@ -525,59 +696,398 @@ from
 		(d1.cea != d2.cea)
 ) d
 
-order by
-	1, 2, 3
+--order by
+--	1, 2, 3
 ;
 
--- détails (BAN/RAN)
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--	
+-- Housenumber
+--
+
+-- delta
+
+insert into delta(db, data, insee, delta, key1, key2, key3)
+with
+d1 as
+(
+	select
+		m.insee
+		-- libellé normé, en majuscule (sans accent, sans trait union)
+		,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
+		--,g.laposte "id"
+		,hn.number
+		,hn.ordinal
+		,hn.laposte "cea"
+		,p.code
+	from
+		housenumber hn
+			join "group" g on hn.parent_id = g.pk
+			join municipality m on g.municipality_id = m.pk
+			join postcode p on hn.postcode_id = p.pk
+	where
+		hn.number is not null
+		
+		and
+		getDepartment(m.insee) in ('06', '33', '90')
+)
+,d2 as
+(
+	select
+		(CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END) "insee"
+		,v.lb_voie "name"
+		--,v.co_voie "id"
+		,n.no_voie "number"
+		,n.lb_ext "ordinal"
+		,n.co_cea "cea"
+		,z.co_postal "code"
+	from
+		ran.numero_ra33 n
+			join adresse a on n.co_cea = a.co_cea_numero
+			join ran.voie_ra41 v on a.co_cea_voie = v.co_cea
+			join ran.za_ra18 z on z.co_cea = a.co_cea_za
+	where
+		n.fl_etat = 1
+		and
+		n.fl_diffusable = 1
+		and
+		a.co_cea_l3 is null
+		
+		and
+		getDepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END)) in ('06', '33', '90')
+)
 
 select
 	'BAN' "db"
+	,'Housenumber' "data"
+	,d.insee
+	,'+' "delta"
+	,d.name
+	,d.number
+	,d.ordinal
+from
+(
+	select
+		insee
+		,name
+		,number
+		,ordinal
+	from
+		d1
+	except
+	select
+		insee
+		,name
+		,number
+		,ordinal
+	from
+		d2
+) d
+  
+union
+select
+	'BAN' "db"
+	,'Housenumber' "data"
+	,d.insee
+	,'-'
+	,d.name
+	,d.number
+	,d.ordinal
+from
+(
+	select
+		insee
+		,name
+		,number
+		,ordinal
+	from
+		d2
+	except
+	select
+		insee
+		,name
+		,number
+		,ordinal
+	from
+		d1
+) d
+
+union
+select
+	'BAN' "db"
+	,'Housenumber' "data"
+	,d.insee
+	,'!'
+	,d.name
+	,d.number
+	,d.ordinal
+from
+(
+	select
+		d1.insee
+		,d1.name
+		,d1.number
+		,d1.ordinal
+	from
+		d1
+			join d2 on d1.insee = d2.insee and d1.name = d2.name and d1.number = d2.number and coalesce(d1.ordinal, ' ') = coalesce(d2.ordinal, ' ')
+	where
+		(d1.cea != d2.cea)
+		or
+		(d1.code != d2.code)
+) d
+
+;
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- details (BAN/RAN)
+--
+
+-- Group
+select
+	d.db "db"
 	,m.insee
 	-- libellé normé, en majuscule (sans accent, sans trait union)
 	,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
-	,to_number(g.laposte, '99999999') "id"
+	,to_number(g.laposte, '99999999') "idvoie"
 	,hn.laposte "cea"
+	--,g.id
 from
 	public.Group g
 		join Municipality m on g.municipality_id = m.pk
-		left outer join Housenumber hn on g.pk = hn.parent_id
-		
+		join delta d on m.insee = d.insee
+		left outer join Housenumber hn on g.pk = hn.parent_id		
+		--left outer join Postcode p on hn.postcode_id = p.pk
 where
+	d.db = 'BAN'
+        and
+        d.data = 'Group'
+	and
+	d.delta in ('+', '!')
+        
+	and
 	hn.number is null
+
+
+	/*
 	and
 	m.insee = '33463'
 	and
 	regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') = 'LA MAGDELAINE'
+	*/
+
+	and
+	getDepartment(m.insee) in ('06', '33', '90')
 
 union
 
 select
-	'RAN' "db"
-	,co_insee "insee"
-	,lb_voie "name"
-	,co_voie "id"
-	,co_cea "cea"
+	d.db "db"
+	,rv.co_insee "insee"
+	,rv.lb_voie "name"
+	,rv.co_voie "idvoie"
+	,rv.co_cea "cea"
+	--,null
 from
-	voie
+	ran.voie_ra41 rv
+		join delta d on rv.co_insee = d.insee
 where
-	fl_etat = 1
+	d.db = 'RAN'
+        and
+        d.data = 'Group'
 	and
-	fl_adr = 1
+	d.delta in ('-', '!')
+
 	and
-	fl_diffusable = 1
+	rv.fl_etat = 1
+	and
+	rv.fl_adr = 1
+	and
+	rv.fl_diffusable = 1
+
+	/*
 	and
 	co_insee = '33463'
 	and
 	lb_voie = 'LA MAGDELAINE'
+	*/
 
 order by
 	2, 3, 1
 ;
 
+select
+	m.insee
+	-- libellé normé, en majuscule (sans accent, sans trait union)
+	,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
+	,to_number(g.laposte, '99999999') "idvoie"
+	,hn.laposte "cea"
+	--,g.id
+from
+	public.Group g
+		join Municipality m on g.municipality_id = m.pk
+		join delta d on m.insee = d.insee
+		left outer join Housenumber hn on g.pk = hn.parent_id		
+		--left outer join Postcode p on hn.postcode_id = p.pk
+where
+	d.db = 'BAN'
+        and
+        d.data = 'Group'
+	and
+	d.delta in ('+', '!')
+        
+	and
+	hn.number is null
+
+
+	/*
+	and
+	m.insee = '33463'
+	and
+	regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') = 'LA MAGDELAINE'
+	*/
+
+	and
+	getDepartment(m.insee) in ('06', '33', '90')
+
+union
+
+select
+	rv.co_insee "insee"
+	,rv.lb_voie "name"
+	,rv.co_voie "idvoie"
+	,rv.co_cea "cea"
+	--,null
+from
+	ran.voie_ra41 rv
+		join delta d on rv.co_insee = d.insee
+where
+	d.db = 'RAN'
+        and
+        d.data = 'Group'
+	and
+	d.delta in ('-', '!')
+
+	and
+	rv.fl_etat = 1
+	and
+	rv.fl_adr = 1
+	and
+	rv.fl_diffusable = 1
+
+	/*
+	and
+	co_insee = '33463'
+	and
+	lb_voie = 'LA MAGDELAINE'
+	*/
+
+order by
+	2, 3, 1
+;
+
+-- Housenumber
+select
+	'BAN' "db"
+	,m.insee
+	-- libellé normé, en majuscule (sans accent, sans trait union)
+	,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
+	,hn.number
+	,hn.ordinal
+	,hn.laposte "cea"
+	,p.code
+from
+	housenumber hn
+		join "group" g on hn.parent_id = g.pk
+		join municipality m on g.municipality_id = m.pk
+		join postcode p on hn.postcode_id = p.pk
+		join delta d on m.insee = d.insee and regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') = d.key1 and hn.number = d.key2 and coalesce(hn.ordinal, ' ') = coalesce(d.key3, ' ')
+where
+        d.db = 'BAN'
+        and
+        d.data = 'Housenumber'
+        and
+        d.delta in ('+', '!')
+
+
+	hn.number is not null
+	
+--	and
+--	getDepartment(m.insee) in ('06', '33', '90')
+
+union
+
+select
+	'RAN' "db"
+	,(CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END) "insee"
+	,v.lb_voie "name"
+	--,v.co_voie "id"
+	,n.no_voie "number"
+	,n.lb_ext "ordinal"
+	,n.co_cea "cea"
+	,z.co_postal "code"
+from
+	ran.numero_ra33 n
+		join adresse a on n.co_cea = a.co_cea_numero
+		join ran.voie_ra41 v on a.co_cea_voie = v.co_cea
+		join ran.za_ra18 z on z.co_cea = a.co_cea_za
+		join delta d on (CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END) = d.insee and regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') = d.key1 and n.no_voie = d.key2 and coalesce(n.lb_ext, ' ') = coalesce(d.key3, ' ')
+where
+        d.db = 'BAN'
+        and
+        d.data = 'Housenumber'
+        and
+        d.delta in ('-', '!')
+
+        and
+	n.fl_etat = 1
+	and
+	n.fl_diffusable = 1
+	and
+	a.co_cea_l3 is null
+	
+--	and
+--	getDepartment((CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END)) in ('06', '33', '90')
+
+order by
+	2, 3, 4, 5, 1
+;
+
 -- constats
 -- libellé BAN avec tv abrégé (ALL, AV, BD, SEN, SQ, CHE, RES, LOT, ...) à étendre (sans abréviation)
+-- hn avec number à NULL, mais sans postcode_id ! nécessaire pour mémoriser le bon CEA d'une voie multi-CP (voir issue #102)
 
+select db, data, delta, count(*) from delta group by db, data, delta order by data, db, delta ;
+
+-- 51345
+select count(*) from public.group where laposte is not null;
+select count(*) from public.housenumber where number is null;
+-- 15944750
+select count(*) from public.housenumber where laposte is not null;
+
+select
+	m.insee
+	-- libellé normé, en majuscule (sans accent, sans trait union)
+	,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
+	,to_number(g.laposte, '99999999') "idvoie"
+	,hn.laposte "cea"
+	,g.id
+	,p.code
+from
+	public.Group g
+		join Municipality m on g.municipality_id = m.pk
+		left outer join Housenumber hn on g.pk = hn.parent_id
+		left outer join Postcode p on hn.postcode_id = p.pk
+		
+where
+	hn.number is null
+	and
+	g.laposte is not null
+order by
+	1, 2
+	;
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- accentuation
