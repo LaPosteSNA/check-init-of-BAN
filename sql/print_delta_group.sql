@@ -9,6 +9,7 @@ select
 	,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
 	,to_number(g.laposte, '99999999') "idvoie"
 	,hn.laposte "cea"
+	,m.insee "l5_insee"
 	--,g.id
 	,d.delta
 from
@@ -22,7 +23,8 @@ where
         and
         d.data = 'Group'
 	and
-	d.delta in ('+', '!')
+--	d.delta in ('+', '!')
+	d.delta = '!'
         
 	and
 	hn.number is null
@@ -40,17 +42,21 @@ select
 	,rv.lb_voie "name"
 	,rv.co_voie "idvoie"
 	,rv.co_cea "cea"
+	,rz.co_insee "l5_insee"
 	--,null
 	,d.delta
 from
 	ran.voie_ra41 rv
 		join delta d on rv.co_insee = d.insee and rv.lb_voie = d.key1
+		join ran.adresse_ra49 ra on rv.co_cea = ra.co_cea_voie
+		join ran.za_ra18 rz on rz.co_cea = ra.co_cea_za
 where
 	d.db = 'BAN'
         and
         d.data = 'Group'
 	and
-	d.delta in ('-', '!')
+--	d.delta in ('-', '!')
+	d.delta = '!'
 
 	and
 	rv.fl_etat = 1
@@ -59,6 +65,10 @@ where
 	and
 	rv.fl_diffusable = 1
 
+	and
+	ra.co_cea_numero is null
+	and
+	ra.co_cea_l3 is null
 
 --	and
 --	co_insee = '06001'

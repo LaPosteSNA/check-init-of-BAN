@@ -2,7 +2,9 @@
 -- eval delta on Group items
 --
 
---insert into delta(db, data, insee, delta, key1)
+delete from delta where db = 'BAN' and data = 'Group';
+
+insert into delta(db, data, insee, delta, key1)
 with
 d1 as
 (
@@ -10,6 +12,7 @@ d1 as
 		m.insee
 		-- libellé normé, en majuscule (sans accent, sans trait union)
 		,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
+		,m.insee "l5_insee"
 		,to_number(g.laposte, '99999999') "id"
 		,hn.laposte "cea"
 	from
@@ -19,18 +22,25 @@ d1 as
 	where
 		hn.number is null
 
-		and
-		m.insee = '06001'
+--		and
+--		m.insee = '06001'
+
+--		and
+--		getDepartment(m.insee) in ('06', '33', '90')
+
 )
 ,d2 as
 (
 	select
-		co_insee "insee"
-		,lb_voie "name"
-		,co_voie "id"
-		,co_cea "cea"
+		rv.co_insee "insee"
+		,rv.lb_voie "name"
+		,rz.co_insee "l5_insee"
+		,rv.co_voie "id"
+		,rv.co_cea "cea"
 	from
 		ran.voie_ra41 rv
+			join ran.adresse_ra49 ra on rv.co_cea = ra.co_cea_voie
+			join ran.za_ra18 rz on rz.co_cea = ra.co_cea_za
 	where
 		rv.fl_etat = 1
 		and
@@ -39,7 +49,15 @@ d1 as
 		rv.fl_diffusable = 1
 
 		and
-		co_insee = '06001'
+		ra.co_cea_numero is null
+		and
+		ra.co_cea_l3 is null
+
+--		and
+--		rv.co_insee = '06001'
+
+--		and
+--		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33', '90')
 )
 
 select
@@ -101,6 +119,8 @@ from
 		d1
 			join d2 on d1.insee = d2.insee and d1.name = d2.name
 	where
+		(d1.l5_insee != d2.l5_insee)
+		or
 		(d1.id != d2.id)
 		or
 		(d1.cea != d2.cea)
