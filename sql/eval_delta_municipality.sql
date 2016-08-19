@@ -2,6 +2,8 @@
 -- Municipality
 --
 
+delete from delta where db = 'BAN' and data = 'Municipality';
+
 insert into delta(db, data, insee, delta)
 with
 d1 as
@@ -11,7 +13,10 @@ d1 as
 		-- libellé normé, en majuscule (sans accent, sans trait union, et SAINT[E] abrégé en ST[E])
 		--  inner replace: abréviation SAINT[E]
 		--  outer replace: transformation n espaces en 1 seul		
-		,regexp_replace(regexp_replace(translate(upper(unaccent(name)), $$-'$$, '  '), 'SAINT([E]?) ', 'ST\1 '), '[ ]+', ' ') "name"
+		--,regexp_replace(regexp_replace(translate(upper(unaccent(name)), $$-'$$, '  '), 'SAINT([E]?) ', 'ST\1 '), '[ ]+', ' ') "name"
+
+		-- libellé normé, en majuscule (sans accent, sans trait union)
+		,regexp_replace(translate(upper(unaccent(name)), $$-'$$, '  '), '[ ]+', ' ') "name"
 	from
 		Municipality
 )
@@ -19,7 +24,7 @@ d1 as
 (
 	select
 		co_insee "insee"
-		,lb_ach_nn "name"
+		,lb_in_ext_loc "name"
 	from
 		ran.za_ra18
 	where
