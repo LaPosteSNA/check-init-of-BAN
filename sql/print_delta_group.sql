@@ -2,6 +2,8 @@
 -- print delta on Group items
 --
 
+select delta, count(*) from delta where db = 'BAN' and data = 'Group' group by delta ;
+
 select
 	'BAN' "db"
 	,m.insee

@@ -1,3 +1,4 @@
+delete from total;
 insert into total(db, data, count)
 select
 	'BAN' "db"

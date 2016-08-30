@@ -2,6 +2,8 @@
 -- Postcode
 --
 
+delete from delta where db = 'BAN' and data = 'Postcode';
+
 insert into delta(db, data, insee, delta, key1, key2)
 with
 d1 as

@@ -2,6 +2,8 @@
 -- Housenumber
 --
 
+delete from delta where db = 'BAN' and data = 'Housenumber';
+
 -- delta
 
 insert into delta(db, data, insee, delta, key1, key2, key3)

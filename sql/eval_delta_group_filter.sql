@@ -2,6 +2,8 @@
 -- Group (filter: 06, 33, 90)
 --
 
+delete from delta where db = 'BAN' and data = 'Group';
+
 -- delta
 
 insert into delta(db, data, insee, delta, key1)
