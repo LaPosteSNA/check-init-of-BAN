@@ -37,8 +37,12 @@ where
         d.data = 'Group'
 	and
 --	d.delta in ('+', '!')
-	d.delta = '!'
-        
+--	d.delta = '!'
+
+	d.delta = '-'
+	and
+	m.insee like '33%'
+
 	and
 	hn.number is null
 
@@ -69,7 +73,11 @@ where
         d.data = 'Group'
 	and
 --	d.delta in ('-', '!')
-	d.delta = '!'
+--	d.delta = '!'
+
+	d.delta = '-'
+	and
+	rv.co_insee like '33%'
 
 	and
 	rv.fl_etat = 1

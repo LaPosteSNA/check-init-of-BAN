@@ -2,6 +2,8 @@
 -- print delta on Housenumber items (by LAPOSTE-key, well known as CEA)
 --
 
+--select delta, count(*) from delta where db = 'BAN' and data = 'Housenumber' group by delta ;
+
 select
 	'BAN' "db"
 	,m.insee
@@ -51,10 +53,10 @@ select
 	,(CASE WHEN z.ID_TYP_LOC < 3 THEN z.CO_INSEE ELSE z.CO_INSEE_R END) "insee"
 	,n.co_cea "cea"
 	,v.lb_voie "name"
-	--,v.co_voie "id"
 	,n.no_voie "number"
 	,n.lb_ext "ordinal"
 	,z.co_postal "code"
+	,v.co_voie "id"
 	,d.delta
 from
 	ran.numero_ra33 n
