@@ -15,6 +15,8 @@ d1 as
 	from
 		Postcode p
 			join Municipality m on p.municipality_id = m.pk
+--	where
+--		getDepartment(m.insee) in ('06', '33', '90')
 )
 ,d2 as
 (
@@ -23,10 +25,13 @@ d1 as
 		,lb_ach_nn "name"
 		,co_insee "insee"
 	from
-		ran.za_ra18
+		ran.za_ra18 rz
 	where
 		fl_etat = 1
-		and id_typ_loc in (1, 2)
+		and
+		id_typ_loc in (1, 2)
+--		and
+--		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33', '90')
 )
 
 select

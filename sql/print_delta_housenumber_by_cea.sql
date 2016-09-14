@@ -37,8 +37,8 @@ where
         and
         d.data = 'Housenumber'
         and
---	d.delta in ('+', '!')
-	d.delta = '!'
+	d.delta in ('+', '!')
+--	d.delta = '!'
 
 	and
 	hn.number is not null
@@ -69,8 +69,8 @@ where
         and
         d.data = 'Housenumber'
         and
---	d.delta in ('-', '!')
-	d.delta = '!'
+	d.delta in ('-', '!')
+--	d.delta = '!'
 
         and
 	n.fl_etat = 1

@@ -18,7 +18,9 @@ d1 as
 		-- libellé normé, en majuscule (sans accent, sans trait union)
 		,regexp_replace(translate(upper(unaccent(name)), $$-'$$, '  '), '[ ]+', ' ') "name"
 	from
-		Municipality
+		Municipality m
+--	where
+--		getDepartment(m.insee) in ('06', '33', '90')
 )
 ,d2 as
 (
@@ -26,10 +28,13 @@ d1 as
 		co_insee "insee"
 		,lb_in_ext_loc "name"
 	from
-		ran.za_ra18
+		ran.za_ra18 rz
 	where
 		fl_etat = 1
 		and id_typ_loc in (1, 2)
+
+--		and
+--		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33', '90')
 )
 
 select
