@@ -1,4 +1,4 @@
---	
+﻿--	
 -- Municipality
 --
 
@@ -19,8 +19,8 @@ d1 as
 		,regexp_replace(translate(upper(unaccent(name)), $$-'$$, '  '), '[ ]+', ' ') "name"
 	from
 		Municipality m
---	where
---		getDepartment(m.insee) in ('06', '33', '90')
+	where
+		getDepartment(m.insee) in ('06', '33')
 )
 ,d2 as
 (
@@ -33,8 +33,8 @@ d1 as
 		fl_etat = 1
 		and id_typ_loc in (1, 2)
 
---		and
---		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33', '90')
+		and
+		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33')
 )
 
 select

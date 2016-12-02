@@ -1,4 +1,4 @@
-\i sql/print_total.sql
+﻿\i sql/print_total.sql
 \i sql/print_delta.sql
 
 with
@@ -33,6 +33,58 @@ nr_group as (
 		rn.fl_etat = 1
 		and
 		rn.fl_diffusable = 1
+)
+
+,nr_group_ran as (
+	select
+		count(distinct rv.co_voie) nr_grp_ran
+	from
+
+		ran.voie_ra41 rv
+			join ran.adresse_ra49 ra on rv.co_cea = ra.co_cea_voie
+			join ran.za_ra18 rz on rz.co_cea = ra.co_cea_za
+	where
+		rv.fl_etat = 1
+		and
+		rv.fl_adr = 1
+		and
+		rv.fl_diffusable = 1
+
+		and
+		ra.co_cea_numero is null
+		and
+		ra.co_cea_l3 is null
+
+--		and
+--		rv.co_insee = '06001'
+
+		and
+		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33')
+
+)
+
+,nr_housenumber_ran as (
+	select
+		count(distinct rn.co_cea) nr_hn_ran
+	from
+
+		ran.numero_ra33 rn
+			join ran.adresse_ra49 ra on rn.co_cea = ra.co_cea_numero
+			join ran.za_ra18 rz on rz.co_cea = ra.co_cea_za
+	where
+		rn.fl_etat = 1
+		and
+		rn.fl_diffusable = 1
+
+		and
+		ra.co_cea_l3 is null
+
+--		and
+--		rv.co_insee = '06001'
+
+		and
+		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33')
+
 )
 
 select
