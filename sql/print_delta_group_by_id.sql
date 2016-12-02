@@ -1,4 +1,4 @@
---
+﻿--
 -- print delta on Group items (by LAPOSTE-id, well known as co_voie)
 --
 
@@ -7,16 +7,21 @@ select delta, count(*) from delta where db = 'BAN' and data = 'Group' group by d
 select
 	'BAN' "db"
 	,m.insee
-	-- libellé normé, en majuscule (sans accent, sans trait union)
+	
+	/*
 	,case
 		when g.laposte is null then
 			g.pk + 10000000
 		else
 			to_number(g.laposte, '99999999')
 	end "id"
+	*/
+	,to_number(g.laposte, '99999999')
+	
 	,hn.laposte "cea"
+	-- libellé normé, en majuscule (sans accent, sans trait union)
 	,regexp_replace(translate(upper(unaccent(g.name)), $$-'$$, '  '), '[ ]+', ' ') "name"
-	,m.insee "l5_insee"
+	,null "l5_insee"
 	--,g.id
 	,d.delta
 from
@@ -59,7 +64,8 @@ select
 	,rv.co_voie "idvoie"
 	,rv.co_cea "cea"
 	,rv.lb_voie "name"
-	,rz.co_insee "l5_insee"
+	--,rz.co_insee "l5_insee"
+	,case when rv.co_insee != rz.co_insee then rz.co_insee else null end "l5_insee"
 	--,null
 	,d.delta
 from
@@ -97,6 +103,6 @@ where
 --	lb_voie = 'LA MAGDELAINE'
 
 order by
-	2, 3, 1
+	2, 3, 1, 5
 ;
 

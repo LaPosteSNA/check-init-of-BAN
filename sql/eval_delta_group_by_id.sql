@@ -1,4 +1,4 @@
---	
+﻿--	
 -- eval delta on Group items (by LAPOSTE-id, well known as co_voie)
 --
 
@@ -30,8 +30,8 @@ d1 as
 --		and
 --		m.insee = '06001'
 
---		and
---		getDepartment(m.insee) in ('06', '33', '90')
+		and
+		getDepartment(m.insee) in ('06', '33')
 
 )
 ,d2 as
@@ -61,8 +61,8 @@ d1 as
 --		and
 --		rv.co_insee = '06001'
 
---		and
---		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33', '90')
+		and
+		getDepartment((CASE WHEN rz.ID_TYP_LOC < 3 THEN rz.CO_INSEE ELSE rz.CO_INSEE_R END)) in ('06', '33')
 )
 
 select
