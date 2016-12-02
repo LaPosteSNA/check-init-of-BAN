@@ -16,8 +16,10 @@ pg_port=5432
 pg_dbname=ban
 pg_user=ban
 pg_pwd=ban
+#pg_user=cquest
+#pg_pwd=cquest
 pg_jobs=3
-pg_dump=ban20160824-noversion.dump
+pg_dump=ban0633-20160929.dump
 pg_table=###TAB
 
 pg_psql="env PGPASSWORD=$(pg_pwd) PGOPTIONS='-c client_min_messages=ERROR' psql --host $(pg_host) --port $(pg_port) --username $(pg_user) --dbname $(pg_dbname) --variable ON_ERROR_STOP=1 --no-password"
@@ -40,18 +42,18 @@ restore_table: list
 	$(info $(pg_table))
 	$(info extract DDL from dump)
 	@#  be careful w/ tablename (add a space before)
-	@grep ' $(pg_table)' $(dir_tmp)/$(pg_dump).list | grep -E 'TABLE|SEQUENCE' > $(dir_tmp)/$(pg_dump).$(pg_table).data.list
-	@grep ' $(pg_table)' $(dir_tmp)/$(pg_dump).list | grep -vE 'TABLE|SEQUENCE|CONSTRAINT' > $(dir_tmp)/$(pg_dump).$(pg_table).index.list
-	@grep ' $(pg_table)' $(dir_tmp)/$(pg_dump).list | grep -vE 'TABLE|SEQUENCE|INDEX' > $(dir_tmp)/$(pg_dump).$(pg_table).constr.list
+	@grep " $(pg_table)" $(dir_tmp)/$(pg_dump).list | grep -E 'TABLE|SEQUENCE' > $(dir_tmp)/$(pg_dump).$(pg_table).data.list
+	@grep " $(pg_table)" $(dir_tmp)/$(pg_dump).list | grep -vE 'TABLE|SEQUENCE|CONSTRAINT' > $(dir_tmp)/$(pg_dump).$(pg_table).index.list
+	@grep " $(pg_table)" $(dir_tmp)/$(pg_dump).list | grep -vE 'TABLE|SEQUENCE|INDEX' > $(dir_tmp)/$(pg_dump).$(pg_table).constr.list
 	@#
-	@#eval $(pg_psql) --command "'drop table $(pg_table) cascade;'"
 	$(info drop table)
+	@#eval $(pg_psql) --command "'drop table $(pg_table) cascade;'"
 	@PGPASSWORD=$(pg_pwd) psql --host $(pg_host) --port $(pg_port) --username $(pg_user) --dbname $(pg_dbname) --variable ON_ERROR_STOP=1 --no-password --command "drop table $(pg_table) cascade;"
 	@#
 	$(info restore table+data, index & constr)
-	@PGPASSWORD=$(pg_pwd) pg_restore -h db.ban.local -U ban -d ban -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).$(pg_table).data.list $(dir_tmp)/$(pg_dump)
-	@PGPASSWORD=$(pg_pwd) pg_restore -h db.ban.local -U ban -d ban -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).$(pg_table).index.list $(dir_tmp)/$(pg_dump)
-	@PGPASSWORD=$(pg_pwd) pg_restore -h db.ban.local -U ban -d ban -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).$(pg_table).constr.list $(dir_tmp)/$(pg_dump)
+	@PGPASSWORD=$(pg_pwd) pg_restore -h $(pg_host) -U $(pg_user) -d $(pg_dbname) -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).$(pg_table).data.list $(dir_tmp)/$(pg_dump) -O -x
+	@PGPASSWORD=$(pg_pwd) pg_restore -h $(pg_host) -U $(pg_user) -d $(pg_dbname) -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).$(pg_table).index.list $(dir_tmp)/$(pg_dump)
+	@PGPASSWORD=$(pg_pwd) pg_restore -h $(pg_host) -U $(pg_user) -d $(pg_dbname) -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).$(pg_table).constr.list $(dir_tmp)/$(pg_dump)
 
 restore_list:
 	@make restore_table pg_table=session
@@ -63,7 +65,11 @@ restore_list:
 
 restore_default: list
 	@grep 'DEFAULT' $(dir_tmp)/$(pg_dump).list > $(dir_tmp)/$(pg_dump).default.list
-	@PGPASSWORD=$(pg_pwd) pg_restore -h db.ban.local -U ban -d ban -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).default.list $(dir_tmp)/$(pg_dump)
+	@PGPASSWORD=$(pg_pwd) pg_restore -h $(pg_host) -U $(pg_user) -d $(pg_dbname) -j $(pg_jobs) -L $(dir_tmp)/$(pg_dump).default.list $(dir_tmp)/$(pg_dump)
+
+restore_test:
+	@make restore_table pg_table=user
+	@make restore_table pg_table=session
 
 clean:
 	@rm $(dir_tmp)/$(pg_dump)*.list
